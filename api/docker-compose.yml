@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  accounts:
+    build:
+      context: ./accounts
+      dockerfile: Dockerfile
+    container_name: highlighting-accounts
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./accounts:/app
+      - ./shared:/app/shared
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    container_name: highlighting-auth
+    ports:
+      - "8002:8001"
+    volumes:
+      - ./auth:/app
+      - ./shared:/app/shared
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  news:
+    build:
+      context: ./news
+      dockerfile: Dockerfile
+    container_name: highlighting-news
+    ports:
+      - "8003:8002"
+    volumes:
+      - ./news:/app
+      - ./shared:/app/shared
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  news-crawler:
+    build:
+      context: ./news-crawler
+      dockerfile: Dockerfile
+    container_name: highlighting-news-crawler
+    ports:
+      - "8004:8003"
+    volumes:
+      - ./news-crawler:/app
+      - ./shared:/app/shared
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
