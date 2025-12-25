@@ -14,14 +14,24 @@ app = FastAPI(title="News Crawler Service")
 
 @app.get("/")
 async def root():
+    """
+    Root endpoint returning service status.
+    """
     return {"service": "news-crawler", "status": "running"}
 
 
 @app.get("/health")
 async def health():
+    """
+    Health check endpoint.
+    """
     return {"status": "healthy"}
+
 
 @app.get("/last-news/{stock}")
 async def read_last_news(stock: str):
+    """
+    Retrieve the last 5 news articles for a given stock.
+    """
     news = await naver_news.recent_5_news(stock)
     return news
