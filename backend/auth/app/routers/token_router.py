@@ -16,10 +16,10 @@ from time import time
 from .. import service, schemas
 
 # Shared imports
-from app.shared.core.database import get_db
-from app.shared.core.redis import get_redis
-from app.shared.core.cookie_handler import AuthCookieHandler
-from app.shared.core.settings import get_cookie_settings
+from ....shared.core.database import get_db
+from ....shared.core.redis import get_redis
+from ....shared.core.cookie_handler import AuthCookieHandler
+from ..core.settings import get_cookie_settings
 
 # ------------------------- Settings Initialization -------------------------
 

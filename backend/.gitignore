@@ -1,6 +1,6 @@
 venv
 .env
-.env.*
+.env.dev
 __pycache__
 *.pyc
 *.pyo
@@ -19,3 +19,8 @@ build
 pip-wheel-metadata
 
 *.pem
+
+# Generated proto files
+*_pb2.py
+*_pb2.pyi
+*_pb2_grpc.py

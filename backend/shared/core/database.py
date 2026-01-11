@@ -1,4 +1,6 @@
-# backend/accounts/app/database.py
+# backend/shared/core/database.py  
+# Usage : FastAPI / gRPC Shared
+
 from typing import AsyncGenerator, Optional
 from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSession
@@ -9,6 +11,10 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 Base = declarative_base()
+
+# gRPC Only Usage Variables
+_SessionLocal: sessionmaker | None = None
+_db_engine: AsyncEngine | None = None
 
 class DatabaseSettings(BaseModel):
     # URL Setting
@@ -37,7 +43,7 @@ def get_database_url(setting: DatabaseSettings) -> str:
     return url.render_as_string(hide_password=False)
 
 
-async def init_db(app: FastAPI, setting: DatabaseSettings) -> None:
+async def init_db(setting: DatabaseSettings, app: FastAPI = None) -> None:
     """
     Lifespan에서 호출: 엔진/세션메이커를 1회 생성하여 app.state에 저장
     """
@@ -56,8 +62,13 @@ async def init_db(app: FastAPI, setting: DatabaseSettings) -> None:
         class_=AsyncSession,
     )
 
-    app.state.db_engine = engine
-    app.state.async_session_maker = SessionLocal
+    if isinstance(app, FastAPI):
+        app.state.db_engine = engine
+        app.state.async_session_maker = SessionLocal
+    else:
+        global _SessionLocal, _db_engine
+        _db_engine = engine
+        _SessionLocal = SessionLocal
 
     try:
         async with engine.connect() as conn:
@@ -74,20 +85,30 @@ async def init_db(app: FastAPI, setting: DatabaseSettings) -> None:
     logger.info(f"DB Successfully connected : {setting.host}")
 
 
-async def close_db(app: FastAPI) -> None:
+async def close_db(app: FastAPI = None) -> None:
     """
     Lifespan 종료 시 호출: 엔진 정리
     """
-    engine: Optional[AsyncEngine] = getattr(app.state, "db_engine", None)
+    if isinstance(app, FastAPI):
+        engine: Optional[AsyncEngine] = getattr(app.state, "db_engine", None)
+    else:
+        global _db_engine
+        engine = _db_engine
+    
     if engine is not None:
         logger.info(f"DB Successfully disconnected")
         await engine.dispose()
 
-async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+async def get_db(request: Request = None) -> AsyncGenerator[AsyncSession, None]:
     """
     요청 단위 의존성: 세션을 열고, 요청 처리 후 자동 닫기
     """
-    SessionLocal = getattr(request.app.state, "async_session_maker", None)
+    if isinstance(request, Request):
+        SessionLocal = getattr(request.app.state, "async_session_maker", None)
+    else:
+        global _SessionLocal
+        SessionLocal = _SessionLocal
+
     if SessionLocal is None:
         raise RuntimeError("Async session maker is not initialized on app.state")
     async with SessionLocal() as session:

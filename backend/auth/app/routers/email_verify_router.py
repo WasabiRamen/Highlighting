@@ -12,11 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .. import service, schemas
 
 # Shared imports
-from app.shared.core.redis import Redis, get_redis
-from app.shared.core.async_mail_client import get_smtp_client, AsyncEmailClient
-from app.shared.core.database import get_db
-from app.shared.core.cookie_handler import EmailVerifyCookieHandler
-from app.shared.core.settings import get_cookie_settings
+from ....shared.core.redis import Redis, get_redis
+from ....shared.core.async_mail_client import get_smtp_client, AsyncEmailClient
+from ....shared.core.database import get_db
+from ....shared.core.cookie_handler import EmailVerifyCookieHandler
+from ..core.settings import get_cookie_settings
 
 
 cookie_settings = get_cookie_settings()

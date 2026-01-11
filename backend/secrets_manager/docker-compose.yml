@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: secrets_manager_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: secrets_manager
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: secrets_manager_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_started
+    env_file:
+      - backend/secrets_manager/.env.dev
+    volumes:
+      - ./keys:/app/keys
+      - ./:/app:ro
+    ports:
+      - "8000:8000" # HTTP
+      - "50051:50051" # gRPC
+    environment:
+      # ensure app can connect to postgres service
+      DB_HOST: postgres
+      # allow overriding via env_file or environment
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+
+
+volumes:
+  postgres_data:
+    driver: local
+

@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from uuid import uuid4
 
 # Shared imports
-from app.shared.core.database import Base
+from ...shared.core.database import Base
 
 class AuthUser(Base):
     """

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// Auth Service Definition
+service AuthService {
+    // service.py -> create_auth_user
+    rpc CreateAuthUser(CreateAuthUserRequest) returns (CreateAuthUserResponse);
+    
+    // service.py -> link_oauth_account
+    rpc LinkOAuthAccount(LinkOAuthAccountRequest) returns (LinkOAuthAccountResponse);
+    
+    // service.py -> google_code_to_token
+    rpc GoogleCodeToToken(GoogleCodeToTokenRequest) returns (GoogleCodeToTokenResponse);
+    
+    // service.py -> rotate_tokens
+    rpc RotateTokens(RotateTokensRequest) returns (IssueTokenResponse);
+    
+    // service.py -> get_public_key
+    rpc GetPublicKey(GetPublicKeyRequest) returns (GetPublicKeyResponse);
+}
+
+// CreateAuthUser Messages
+message CreateAuthUserRequest {
+    string user_id = 1;
+    string password = 2;
+    string email = 3;
+    string email_token = 4;
+}
+
+message CreateAuthUserResponse {
+    string user_uuid = 1;
+    string user_id = 2;
+    string email = 3;
+    bool is_active = 4;
+    string created_at = 5;
+}
+
+// LinkOAuthAccount Messages
+message LinkOAuthAccountRequest {
+    string provider = 1;
+    string provider_id = 2;
+    string user_uuid = 3;
+}
+
+message LinkOAuthAccountResponse {
+    bool status = 1;
+}
+
+// GoogleCodeToToken Messages
+message GoogleCodeToTokenRequest {
+    string code = 1;
+}
+
+message GoogleCodeToTokenResponse {
+    string provider_id = 1;
+    string email = 2;
+    string name = 3;
+    string picture = 4;
+}
+
+// RotateTokens Messages
+message RotateTokensRequest {
+    string session_id = 1;
+    string refresh_token = 2;
+    string user_agent = 3;
+    string ip_address = 4;
+}
+
+// Token Messages
+message TokenData {
+    string token = 1;
+    string expires_at = 2;
+    int32 expires_in = 3;
+}
+
+message IssueTokenResponse {
+    string access_token = 1;
+    string refresh_token = 2;
+    string session_id = 3;
+}
+
+// GetPublicKey Messages
+message GetPublicKeyRequest {
+    string kid = 1;
+}
+
+message GetPublicKeyResponse {
+    string public_key = 1;
+}

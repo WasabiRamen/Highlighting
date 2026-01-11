@@ -10,10 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import crud
 
 # Shared imports
-from app.shared.tools.token.get_token_rotator import get_token_rotator
-
-# Auth Service imports (차후 gRPC로 분리 예정)
-from app.service.auth.app.service import create_auth_user, link_oauth_account, google_code_to_token
+from ...shared.tools.get_token_rotator import get_token_rotator
+from ...shared.tools.grpc_auth_client import get_grpc_auth_client
 
 
 class InvalidGoogleTokenException(Exception):
@@ -35,15 +33,16 @@ async def create_account(
     프로필 생성 -> 인증생성
     """
     logger.info(f"Creating account for user_id: {user_id}")
-    auth_user = await create_auth_user(
-        db=db,
+    
+    grpc_client = get_grpc_auth_client()
+    auth_user = await grpc_client.create_auth_user(
         user_id=user_id,
         password=password,
         email=email,
         email_token=email_token,
     )
 
-    user_uuid = auth_user.user_uuid
+    user_uuid = auth_user['user_uuid']
 
     new_account = await crud.create_account(
         db=db,
@@ -83,19 +82,20 @@ async def link_provider(
     if provider not in allowd_providers:
         raise ValueError("지원하지 않는 OAuth 제공자입니다.")
 
+    grpc_client = get_grpc_auth_client()
+    
     if provider == 'google':
-        oauth_user_info = await google_code_to_token(code)
+        oauth_user_info = await grpc_client.google_code_to_token(code)
         if not oauth_user_info:
             raise InvalidGoogleTokenException("구글 인증에 실패했습니다.")
-        provider_id = oauth_user_info.get("id")
+        provider_id = oauth_user_info.get("provider_id")
         
     user_uuid = token_payload.sub
 
-    await link_oauth_account(
-        db=db,
-        user_uuid=user_uuid,
+    await grpc_client.link_oauth_account(
         provider=provider,
-        provider_id=provider_id
+        provider_id=provider_id,
+        user_uuid=user_uuid
     )
 
     await crud.append_linked_provider(

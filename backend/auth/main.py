@@ -1,22 +1,3 @@
-from fastapi import FastAPI
-
-app = FastAPI(title="Accounts Service")
-
-
-@app.get("/")
-async def root():
-    return {"service": "accounts", "status": "running"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-
-
-#--------------------------------------------------------------------------
-
-
 # Standard Library
 import asyncio
 from contextlib import asynccontextmanager
@@ -32,7 +13,7 @@ from fastapi.requests import Request
 from fastapi.middleware.cors import CORSMiddleware
 
 # Settings
-from backend.shared.core._old.settings import (
+from .app.core.settings import (
     get_database_runtime,
     get_redis_runtime,
     get_smtp_runtime,
@@ -42,43 +23,32 @@ from backend.shared.core._old.settings import (
 )
 
 # Core
-from backend.shared.core._old.database import (
+from ..shared.core.database import (
     init_db,
     close_db,
     get_db,
     db_healthcheck
 )
-from backend.shared.core._old.redis import (
+from ..shared.core.redis import (
     init_redis,
     close_redis
 )
-from app.shared.core.async_mail_client import AsyncEmailClient
+
+from ..shared.core.async_mail_client import AsyncEmailClient
 
 # Services
-from app.service.auth.tools.rsa_keys.key_rotation import RSAKeyRotation
-from app.service.auth import router as auth_router
-from app.service.accounts import router as accounts_router
+from .app.routers import router as auth_router
+from .app.tools.rsa_keys.key_rotation import RSAKeyRotation
+from .app.grpc.server import create_grpc_server, start_grpc_server, stop_grpc_server
 
 # Exception handlers
-from app.service.auth import (
+from .app.exceptions.exceptions_handler import (
     register_token_exception_handlers,
     register_email_verification_exception_handlers,
     register_oauth_exception_handlers,
 )
-from app.service.accounts import (
-    register_accounts_exception_handlers,
-)
 
-
-"""
-@Todo:
-    - 예외 처리 및 리팩토링 (Auth Service / Shared Tool - Token)
-    - Email Token -> Cookie 처리 변경 검토
-    - 로깅 상세화
-    - 테스트 케이스 작성
-    - 문서화
-    - API 성능 테스트 (부하 테스트)
-"""
+app = FastAPI(title="Auth Service")
 
 
 auth_settings = get_auth_settings()
@@ -93,7 +63,7 @@ smtp_runtime = get_smtp_runtime()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # DB 먼저 초기화 (다른 컴포넌트가 세션메이커를 사용하므로 선행)
-    await init_db(app, database_runtime)
+    await init_db(app=app, database_runtime=database_runtime)
 
     rsa_key_rotation = asymmetric.KeyRotator(
         key_size = asymmetric.RSAKeySize.RSA2048,
@@ -107,13 +77,13 @@ async def lifespan(app: FastAPI):
     await rsa_key_rotation.init()
     app.state.rsa_key_rotation = rsa_key_rotation
 
-    # # JWT Key Manager (DB 초기화 이후에 실행, app 전달)
-    # rsa_key_rotation = RSAKeyRotation(
-    #     private_key_path=auth_settings.RSA_PRIVATE_KEY_PATH,
-    #     public_key_path=auth_settings.RSA_PUBLIC_KEY_PATH,
-    # )
-    # await rsa_key_rotation.init(app)
-    # app.state.rsa_key_manager = rsa_key_rotation
+    # JWT Key Manager (DB 초기화 이후에 실행, app 전달)
+    rsa_key_rotation = RSAKeyRotation(
+        private_key_path=auth_settings.RSA_PRIVATE_KEY_PATH,
+        public_key_path=auth_settings.RSA_PUBLIC_KEY_PATH,
+    )
+    await rsa_key_rotation.init(app)
+    app.state.rsa_key_manager = rsa_key_rotation
 
     # Redis
     await init_redis(app, redis_runtime)
@@ -122,11 +92,21 @@ async def lifespan(app: FastAPI):
     app.state.smtp = AsyncEmailClient(smtp_runtime)
     await app.state.smtp.connect()
 
+    # gRPC Server
+    grpc_host = auth_settings.GRPC_HOST if hasattr(auth_settings, 'GRPC_HOST') else "0.0.0.0"
+    grpc_port = auth_settings.GRPC_PORT if hasattr(auth_settings, 'GRPC_PORT') else 50051
+    
+    grpc_server = create_grpc_server(app, host=grpc_host, port=grpc_port)
+    await start_grpc_server(grpc_server, host=grpc_host, port=grpc_port)
+
+    app.state.grpc_server = grpc_server
+
     try:
         yield
     finally:
         # Shutdown: 전역 리소스 정리 (순서 및 예외 안전성 강화)
         cleanup_tasks = [
+            ("gRPC", lambda: stop_grpc_server(app.state.grpc_server)),
             ("SMTP", app.state.smtp.disconnect),
             ("Redis", lambda: close_redis(app)),
             ("DB", lambda: close_db(app)),
@@ -151,11 +131,9 @@ app = FastAPI(
 register_token_exception_handlers(app)
 register_email_verification_exception_handlers(app)
 register_oauth_exception_handlers(app)
-register_accounts_exception_handlers(app)
 
 # Bind Routers
 app.include_router(auth_router)
-app.include_router(accounts_router)
 
 app.state.public_keys = {}  # 초기값 설정
 
@@ -167,6 +145,10 @@ app.add_middleware(
     allow_methods=["*"],     # 모든 HTTP 메서드 허용
     allow_headers=["*"],     # 모든 헤더 허용
 )
+
+@app.get("/")
+async def root():
+    return {"service": "accounts", "status": "running"}
 
 
 @app.get("/health", description="Health Check")
@@ -192,7 +174,6 @@ async def read_root(
 
 @app.get("/keys/current-rsa-private-key", description="Get Current RSA Private Key")
 async def get_current_rsa_private_key(request: Request):
-    print(request.app.state.rsa_key_manager_v2.private_key)
     return {
-        "current_rsa_private_key": request.app.state.rsa_key_manager_v2.current_key_pair.private_key
+        "current_rsa_private_key": request.app.state.rsa_key_manager.current_kid
     }

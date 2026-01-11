@@ -1,0 +1,10 @@
+venv
+*.key
+__pycache__/
+.env
+.env.*
+backend/**/.env
+backend/**/.env.*
+logs/
+backend/secrets_manager/.env.dev
+logs/*

@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import schemas, service, exceptions
 
 # Shared imports
-from app.shared.core.database import get_db
-from app.shared.tools.token.get_token_rotator import get_token_rotator, AccessTokenPayload
+from ...shared.core.database import get_db
+from ...shared.tools.get_token_rotator import get_token_rotator, AccessTokenPayload
 
 router = APIRouter(prefix="/accounts")
 

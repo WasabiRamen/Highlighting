@@ -5,7 +5,7 @@ from sqlalchemy import Column, Boolean, String
 from sqlalchemy.dialects.postgresql import UUID
 
 # Shared imports
-from app.shared.core.database import Base
+from ...shared.core.database import Base
 
 
 class Account(Base):

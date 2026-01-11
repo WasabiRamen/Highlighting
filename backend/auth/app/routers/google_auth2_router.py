@@ -11,7 +11,7 @@ from loguru import logger
 from .. import service, schemas
 
 # Shared imports
-from app.shared.core.database import get_db
+from ....shared.core.database import get_db
 
 # ------------------------- Google Router -------------------------
 

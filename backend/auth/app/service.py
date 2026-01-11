@@ -16,19 +16,20 @@ from fastapi.requests import Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 # App imports
-from . import crud, redis_session, exceptions
-from ..core.security.password_hasher import PasswordHasher
-from ..core.security.access_token import AccessTokenService
-from ..core.security.refresh_token import RefreshTokenService
-from ..core.security.email_token import EmailTokenManager
-from ..core.security.google_oauth2 import GoogleOAuth2Client
-from ..core.form.verify_email_form import verify_email_form
-from ..tools.rsa_keys.loader import load_public_key
+from . import crud, redis_session
+from .exceptions import exceptions
+from .core.security.password_hasher import PasswordHasher
+from .core.security.access_token import AccessTokenService
+from .core.security.refresh_token import RefreshTokenService
+from .core.security.email_token import EmailTokenManager
+from .core.security.google_oauth2 import GoogleOAuth2Client
+from .core.form.verify_email_form import verify_email_form
+from .tools.rsa_keys.loader import load_public_key
 
 
 # Shared Core imports
-from app.shared.core.async_mail_client import AsyncEmailClient
-from app.shared.core.settings import (
+from ...shared.core.async_mail_client import AsyncEmailClient
+from .core.settings import (
     get_auth_settings, 
     get_email_verify_settings, 
     get_google_oauth_settings
@@ -308,19 +309,20 @@ async def rotate_tokens(request: Request, db: AsyncSession, redis: Redis) -> Iss
     """
     리프래시 토큰으로 액세스 토큰 재발급
 
+    # gRPC 지원하도록 재설계 해야됨.
+
     description:
         발급 예외처리 과정
         1. 토큰이 DB에 존재하지 않음 -> RefreshTokenNotFound 예외 발생
         2. 토큰이 만료됨 -> InvalidTokenException 예외 발생, 비활성화 처리
         3. 토큰 소유자 불일치 -> InvalidTokenException 예외 발생
     """
+
     current_private_key = get_current_private_key(request.app)
     private_key = current_private_key.private_key
     kid = current_private_key.kid
     session_id = request.cookies.get("session_id")
     session_info = await redis_session.RedisSession(redis).get(session_id)
-
-    print(session_info)
 
     # Redis 내에 session_id가 없는 상태 (탈취 됨, 모든 토큰 무효화 처리)
     if not session_info:

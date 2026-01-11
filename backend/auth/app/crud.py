@@ -11,7 +11,7 @@ from .models import (
     RSAKey
 )
 
-from ..core.security.refresh_token import RefreshTokenService
+from .core.security.refresh_token import RefreshTokenService
 
 # -------------------------------- Function Logic ---------------------------
 
