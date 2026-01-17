@@ -17,7 +17,7 @@ from grpc_health.v1 import health_pb2_grpc as grpc_health_pb2_grpc
 
 from .. import service as sm_service
 from ..tools.mk import read_master_key
-from ....shared.core.database import DatabaseSettings, init_db, close_db, get_db
+from shared.core.database import DatabaseSettings, init_db, close_db, get_db
 
 
 def _datetime_to_timestamp(dt) -> Timestamp:

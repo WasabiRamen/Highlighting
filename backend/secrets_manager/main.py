@@ -17,19 +17,19 @@ from grpc_health.v1 import health_pb2 as grpc_health_pb2
 from grpc_health.v1 import health_pb2_grpc as grpc_health_pb2_grpc
 
 # Local Libraries
-from .grpc.server import start_grpc_server, stop_grpc_server
-from .core.settings import (
+from .app.grpc.server import start_grpc_server, stop_grpc_server
+from .app.core.settings import (
     get_fastapi_settings,
     get_database_settings,
     get_security_settings
 )
 
 try:
-    from ...shared.core.database import init_db, close_db
+    from ..shared.core.database import init_db, close_db
 except ImportError:
     from backend.shared.core.database import init_db, close_db
 
-from .tools.mk import read_master_key
+from .app.tools.mk import read_master_key
 
 
 # Settings

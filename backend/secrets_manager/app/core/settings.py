@@ -8,14 +8,14 @@ from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ....shared.core.database import DatabaseSettings as DatabaseRuntime
+from shared.core.database import DatabaseSettings as DatabaseRuntime
 
 
 # Determine the environment file path
 # SETTINGS_DIR = Path(__file__).resolve().parents[2] / "settings"
 # ENV_FILE = SETTINGS_DIR / ".env"
 
-ENV_FILE = "backend/secrets_manager/.env.dev"
+ENV_FILE = "/workspaces/Highlighting/backend/secrets_manager/.env.dev"
 
 
 # ─────────────────────────────────────────────
