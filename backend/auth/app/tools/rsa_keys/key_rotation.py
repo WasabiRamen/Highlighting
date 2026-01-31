@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 # APP Specific
-from ....shared.core.database import get_db
+from shared.core.database import get_db
 from ...app.core.settings import get_auth_settings
 from ...app.models import RSAKey
 

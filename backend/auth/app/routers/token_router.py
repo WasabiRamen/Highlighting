@@ -16,9 +16,9 @@ from time import time
 from .. import service, schemas
 
 # Shared imports
-from ....shared.core.database import get_db
-from ....shared.core.redis import get_redis
-from ....shared.core.cookie_handler import AuthCookieHandler
+from shared.core.database import get_db
+from shared.core.redis import get_redis
+from shared.core.cookie_handler import AuthCookieHandler
 from ..core.settings import get_cookie_settings
 
 # ------------------------- Settings Initialization -------------------------

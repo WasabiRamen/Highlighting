@@ -291,8 +291,11 @@ async def start_grpc_server(
     host: Optional[str] = None,
     port: Optional[int] = None,
 ) -> grpc.aio.Server:
+    from ..core.settings import get_security_settings
+    
     grpc_host = host or os.getenv("GRPC_HOST", "0.0.0.0")
     grpc_port = port or int(os.getenv("GRPC_PORT", "50051"))
+    security_settings = get_security_settings()
 
     # gRPC uses its own DB engine/sessionmaker (globals in shared.core.database)
     await init_db(database_settings, app=None)
@@ -312,7 +315,41 @@ async def start_grpc_server(
     servicer.add_to_server(server)
 
     bind_addr = f"{grpc_host}:{grpc_port}"
-    server.add_insecure_port(bind_addr)
+    
+    # TLS 설정에 따라 포트 추가
+    if security_settings.GRPC_TLS_ENABLED and security_settings.GRPC_SERVER_CERT_PATH and security_settings.GRPC_SERVER_KEY_PATH:
+        try:
+            # TLS enabled: 인증서와 키 로드
+            with open(security_settings.GRPC_SERVER_CERT_PATH, "rb") as f:
+                cert = f.read()
+            with open(security_settings.GRPC_SERVER_KEY_PATH, "rb") as f:
+                key = f.read()
+            
+            # CA 인증서 (선택사항 - mutual TLS)
+            root_cert = None
+            if security_settings.GRPC_CA_CERT_PATH:
+                try:
+                    with open(security_settings.GRPC_CA_CERT_PATH, "rb") as f:
+                        root_cert = f.read()
+                except FileNotFoundError:
+                    logger.warning("[gRPC] CA cert not found, continuing without mutual TLS")
+            
+            server_creds = grpc.ssl_server_credentials(
+                [(key, cert)],
+                root_certificates=root_cert,
+                require_client_auth=bool(root_cert)  # mutual TLS if CA cert provided
+            )
+            server.add_secure_port(bind_addr, server_creds)
+            logger.info("[gRPC] TLS enabled with server certificate")
+        except FileNotFoundError as e:
+            logger.error(f"[gRPC] TLS certificate file not found: {e}")
+            logger.warning("[gRPC] Falling back to insecure port")
+            server.add_insecure_port(bind_addr)
+    else:
+        # TLS disabled: insecure port (개발 환경 전용)
+        server.add_insecure_port(bind_addr)
+        if not security_settings.GRPC_TLS_ENABLED:
+            logger.warning("[gRPC] WARNING: Running with insecure port (development only)")
 
     # Report health for overall server and specific service
     health_servicer.set("", grpc_health_pb2.HealthCheckResponse.SERVING)

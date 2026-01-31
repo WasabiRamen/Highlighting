@@ -23,18 +23,18 @@ from .app.core.settings import (
 )
 
 # Core
-from ..shared.core.database import (
+from shared.core.database import (
     init_db,
     close_db,
     get_db,
     db_healthcheck
 )
-from ..shared.core.redis import (
+from shared.core.redis import (
     init_redis,
     close_redis
 )
 
-from ..shared.core.async_mail_client import AsyncEmailClient
+from shared.core.async_mail_client import AsyncEmailClient
 
 # Services
 from .app.routers import router as auth_router

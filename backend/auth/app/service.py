@@ -28,7 +28,7 @@ from .tools.rsa_keys.loader import load_public_key
 
 
 # Shared Core imports
-from ...shared.core.async_mail_client import AsyncEmailClient
+from shared.core.async_mail_client import AsyncEmailClient
 from .core.settings import (
     get_auth_settings, 
     get_email_verify_settings, 

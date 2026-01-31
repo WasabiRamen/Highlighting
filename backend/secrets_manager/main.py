@@ -3,8 +3,9 @@
 # Standard Librarys
 from contextlib import asynccontextmanager
 import os
+import asyncio
 
-# Third Party Libraries
+# RestAPI Libraries
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
 from loguru import logger
@@ -12,24 +13,26 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+# gRPC Libraries
 import grpc
 from grpc_health.v1 import health_pb2 as grpc_health_pb2
 from grpc_health.v1 import health_pb2_grpc as grpc_health_pb2_grpc
 
 # Local Libraries
-from .app.grpc.server import start_grpc_server, stop_grpc_server
-from .app.core.settings import (
+from app.grpc.server import start_grpc_server, stop_grpc_server
+from app.core.settings import (
     get_fastapi_settings,
     get_database_settings,
     get_security_settings
 )
 
 try:
-    from ..shared.core.database import init_db, close_db
+    from shared.core.database import init_db, close_db
 except ImportError:
     from backend.shared.core.database import init_db, close_db
 
-from .app.tools.mk import read_master_key
+from app.tools.mk import read_master_key
 
 
 # Settings
@@ -123,10 +126,25 @@ async def grpc_health(request: Request):
     grpc_port = int(os.getenv("GRPC_PORT", "50051"))
     grpc_host = os.getenv("GRPC_HOST", "0.0.0.0")
     target_host = "127.0.0.1" if grpc_host in {"0.0.0.0", "::"} else grpc_host
-
     target = f"{target_host}:{grpc_port}"
+    
     try:
-        async with grpc.aio.insecure_channel(target) as channel:
+        # TLS 설정에 따라 channel 생성
+        if security_settings.GRPC_TLS_ENABLED and security_settings.GRPC_CA_CERT_PATH:
+            # TLS enabled: CA 인증서 로드
+            try:
+                with open(security_settings.GRPC_CA_CERT_PATH, "rb") as f:
+                    ca_cert = f.read()
+                channel_creds = grpc.ssl_channel_credentials(root_certificates=ca_cert)
+                channel = grpc.aio.secure_channel(target, channel_creds)
+            except FileNotFoundError:
+                logger.error(f"[gRPC Health] CA cert not found: {security_settings.GRPC_CA_CERT_PATH}")
+                return {"status": "unhealthy", "error": "CA cert not found"}
+        else:
+            # TLS disabled: insecure channel (개발 환경 전용)
+            channel = grpc.aio.insecure_channel(target)
+        
+        async with channel:
             stub = grpc_health_pb2_grpc.HealthStub(channel)
             resp = await stub.Check(
                 grpc_health_pb2.HealthCheckRequest(service="secrets_manager.v1.SecretsManagerService"),
@@ -135,6 +153,12 @@ async def grpc_health(request: Request):
 
         status_name = grpc_health_pb2.HealthCheckResponse.ServingStatus.Name(resp.status)
         return {"status": "healthy" if resp.status == resp.SERVING else "unhealthy", "grpc": status_name}
+    except asyncio.TimeoutError:
+        logger.error("[gRPC Health] Timeout connecting to gRPC server at {}", target)
+        return {"status": "unhealthy", "error": "gRPC server timeout"}
+    except grpc.aio.AioRpcError as e:
+        logger.error("[gRPC Health] gRPC error: {} - {}", e.code(), e.details())
+        return {"status": "unhealthy", "error": f"gRPC error: {e.code()}"}
     except Exception as e:
         logger.exception("[gRPC Health] Health check failed")
         return {"status": "unhealthy", "error": str(e)}

@@ -2,7 +2,7 @@ from sqlalchemy import Column, Boolean, String, DateTime, LargeBinary, Integer
 from sqlalchemy.sql import func
 
 # Shared imports
-from ...shared.core.database import Base
+from shared.core.database import Base
 
 
 class SecretsManagerSecret(Base):

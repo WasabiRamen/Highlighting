@@ -3,6 +3,7 @@ Settings module for FastAPI application.
 Loads configuration from .env files using pydantic-settings.
 """
 
+import os
 from pathlib import Path
 from functools import lru_cache
 from pydantic import Field
@@ -12,10 +13,17 @@ from shared.core.database import DatabaseSettings as DatabaseRuntime
 
 
 # Determine the environment file path
-# SETTINGS_DIR = Path(__file__).resolve().parents[2] / "settings"
-# ENV_FILE = SETTINGS_DIR / ".env"
+# settings.py는 app/core/settings.py에 위치하므로
+# ../../를 통해 secrets_manager 루트 디렉토리에 접근
+SECRETS_MANAGER_ROOT = Path(__file__).resolve().parents[2]
 
-ENV_FILE = "/workspaces/Highlighting/backend/secrets_manager/.env.dev"
+# 환경 변수로 ENV 지정 (dev, staging, prod) - 기본값은 dev
+ENV = os.getenv("ENV", "dev")
+ENV_FILE = SECRETS_MANAGER_ROOT / f".env.{ENV}"
+
+# 환경 파일이 없으면 .env.dev 사용
+if not ENV_FILE.exists():
+    ENV_FILE = SECRETS_MANAGER_ROOT / ".env.dev"
 
 
 # ─────────────────────────────────────────────
@@ -89,6 +97,10 @@ class DatabaseSettings(BaseSettings):
 
 class SecuritySettings(BaseSettings):
     MASTER_KEY_PATH: str = Field(default="master.key")
+    GRPC_TLS_ENABLED: bool = Field(default=False)  # 개발: False, 프로덕션: True
+    GRPC_CA_CERT_PATH: str = Field(default="")
+    GRPC_SERVER_CERT_PATH: str = Field(default="")
+    GRPC_SERVER_KEY_PATH: str = Field(default="")
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),

@@ -9,9 +9,9 @@ from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ...shared.core.async_mail_client import AsyncEmailClient
-from ...shared.core.database import DatabaseSettings as DatabaseRuntime
-from ...shared.core.redis import RedisSettings as RedisRuntime
+from shared.core.async_mail_client import AsyncEmailClient
+from shared.core.database import DatabaseSettings as DatabaseRuntime
+from shared.core.redis import RedisSettings as RedisRuntime
 
 
 # env 파일 경로, 환경에 따라 변경 가능
